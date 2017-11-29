@@ -20,8 +20,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -107,11 +107,13 @@ public class NerdLauncherFragment extends Fragment {
 
     private class ActivityAdapter extends RecyclerView.Adapter<ActivityHolder> {
         private List<ResolveInfo> mActivities;
-        private List<ResolveInfo> initialActivities;
+        private List<ResolveInfo> mActivitiesCopy; // we change mActivities based on search
 
         public ActivityAdapter(List<ResolveInfo> activities) {
             mActivities = activities;
-            initialActivities = activities;
+
+            mActivitiesCopy = new ArrayList<ResolveInfo>(activities.size());
+            for (ResolveInfo item : activities) mActivitiesCopy.add(item);
         }
 
         @Override
@@ -132,27 +134,23 @@ public class NerdLauncherFragment extends Fragment {
             return mActivities.size();
         }
 
+        // filter the search text
         public void filter(String text) {
             mActivities.clear();
-            if(text.isEmpty()){
-                mActivities.addAll(initialActivities);
 
-                int appName = mActivities.size();
-                Toast toast = Toast.makeText(getActivity(), Integer.toString(appName), Toast.LENGTH_SHORT);
-                toast.show();
-
+            if (text.isEmpty()) {
+                mActivities.addAll(mActivitiesCopy); // revert back to the original
             } else {
                 // add the activity to the list
-                PackageManager pm = getActivity().getPackageManager();
                 text = text.toLowerCase();
-                for (int i = 0; i < initialActivities.size(); i++) {
-                    if (initialActivities.get(i).loadLabel(pm).toString().toLowerCase().contains(text)) {
-                        mActivities.add(initialActivities.get(i));
+                for (int i = 0; i < mActivitiesCopy.size(); i++) {
+                    PackageManager pm = getActivity().getPackageManager();
+                    if (mActivitiesCopy.get(i).loadLabel(pm).toString().toLowerCase().contains(text)) {
+                        mActivities.add(mActivitiesCopy.get(i));
                     }
                 }
             }
             mAdapter.notifyDataSetChanged();
-            mRecyclerView.setAdapter(mAdapter); // reset the adapter
         }
     }
 
