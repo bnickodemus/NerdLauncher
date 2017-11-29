@@ -8,13 +8,19 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SearchView;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -28,6 +34,7 @@ public class NerdLauncherFragment extends Fragment {
     private static final String TAG = "NerdLauncherFragment";
 
     private RecyclerView mRecyclerView;
+    private ActivityAdapter mAdapter;
 
     public static NerdLauncherFragment newInstance() {
         return new NerdLauncherFragment();
@@ -35,6 +42,8 @@ public class NerdLauncherFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        setHasOptionsMenu(true);
+
         View v = inflater .inflate(R.layout.fragment_nerd_launcher, container, false);
         mRecyclerView = (RecyclerView) v.findViewById(R.id.app_recycler_view);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
@@ -58,7 +67,8 @@ public class NerdLauncherFragment extends Fragment {
             }
          });
         Log.i(TAG, "Found " + activities.size() + " activities.");
-        mRecyclerView.setAdapter(new ActivityAdapter(activities));
+        mAdapter = new ActivityAdapter(activities);
+        mRecyclerView.setAdapter(mAdapter);
     }
 
     private class ActivityHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
@@ -96,10 +106,12 @@ public class NerdLauncherFragment extends Fragment {
     }
 
     private class ActivityAdapter extends RecyclerView.Adapter<ActivityHolder> {
-        private final List<ResolveInfo> mActivities;
+        private List<ResolveInfo> mActivities;
+        private List<ResolveInfo> initialActivities;
 
         public ActivityAdapter(List<ResolveInfo> activities) {
             mActivities = activities;
+            initialActivities = activities;
         }
 
         @Override
@@ -119,5 +131,50 @@ public class NerdLauncherFragment extends Fragment {
         public int getItemCount() {
             return mActivities.size();
         }
+
+        public void filter(String text) {
+            mActivities.clear();
+            if(text.isEmpty()){
+                mActivities.addAll(initialActivities);
+
+                int appName = mActivities.size();
+                Toast toast = Toast.makeText(getActivity(), Integer.toString(appName), Toast.LENGTH_SHORT);
+                toast.show();
+
+            } else {
+                // add the activity to the list
+                PackageManager pm = getActivity().getPackageManager();
+                text = text.toLowerCase();
+                for (int i = 0; i < initialActivities.size(); i++) {
+                    if (initialActivities.get(i).loadLabel(pm).toString().toLowerCase().contains(text)) {
+                        mActivities.add(initialActivities.get(i));
+                    }
+                }
+            }
+            mAdapter.notifyDataSetChanged();
+            mRecyclerView.setAdapter(mAdapter); // reset the adapter
+        }
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        inflater.inflate(R.menu.menu, menu);
+        super.onCreateOptionsMenu(menu,inflater);
+
+        final MenuItem searchItem = menu.findItem(R.id.action_search);
+        final SearchView searchView = (SearchView) MenuItemCompat.getActionView(searchItem);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                mAdapter.filter(query);
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                mAdapter.filter(newText);
+                return true;
+            }
+        });
     }
 }
